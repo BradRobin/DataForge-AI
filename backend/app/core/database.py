@@ -51,3 +51,8 @@ async def get_db():
             raise
         finally:
             await session.close()
+
+
+def get_session_factory():
+    return SessionLocal
+

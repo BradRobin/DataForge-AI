@@ -40,7 +40,7 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
         await session.rollback()
 
 @pytest_asyncio.fixture
-async def client(db_session: AsyncSession):
+async def client(db_session: AsyncSession, test_engine):
     """Provide an HTTPX AsyncClient configured to make requests with dependency overrides."""
     async def override_get_db():
         try:
@@ -48,10 +48,25 @@ async def client(db_session: AsyncSession):
         finally:
             pass
 
+    TestingSessionLocal = async_sessionmaker(
+        bind=test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False
+    )
+
+    def override_get_session_factory():
+        return TestingSessionLocal
+
     app.dependency_overrides[get_db] = override_get_db
+    
+    from app.core.database import get_session_factory
+    app.dependency_overrides[get_session_factory] = override_get_session_factory
     
     from httpx import ASGITransport, AsyncClient
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
         
     app.dependency_overrides.clear()
+
