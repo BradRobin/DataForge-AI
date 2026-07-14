@@ -211,12 +211,15 @@ class QualityService:
         # Update quality score in database
         doc.quality_score = report["quality_score"]
         
-        # Cache breakdown metrics under metadata JSON
+        # Cache breakdown metrics under metadata JSON (reassign dict to trigger SQLAlchemy JSON update)
         if doc.metadata_ is None:
             doc.metadata_ = {}
-        doc.metadata_["quality_report"] = {
-            "sub_scores": report["sub_scores"],
-            "metrics": report["metrics"]
+        doc.metadata_ = {
+            **doc.metadata_,
+            "quality_report": {
+                "sub_scores": report["sub_scores"],
+                "metrics": report["metrics"]
+            }
         }
 
         db.add(doc)
@@ -237,9 +240,12 @@ class QualityService:
             doc.quality_score = report["quality_score"]
             if doc.metadata_ is None:
                 doc.metadata_ = {}
-            doc.metadata_["quality_report"] = {
-                "sub_scores": report["sub_scores"],
-                "metrics": report["metrics"]
+            doc.metadata_ = {
+                **doc.metadata_,
+                "quality_report": {
+                    "sub_scores": report["sub_scores"],
+                    "metrics": report["metrics"]
+                }
             }
             db.add(doc)
             processed += 1

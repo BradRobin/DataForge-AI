@@ -40,9 +40,12 @@ class DedupService:
                     if original_doc.hash == doc.hash:
                         is_exact = True
                         doc.duplicate_flag = True
-                        # Update metadata to record duplicate lineage
-                        doc.metadata_["duplicate_type"] = "exact"
-                        doc.metadata_["duplicate_of"] = str(original_doc.id)
+                        # Update metadata to record duplicate lineage (reassign dict to trigger SQLAlchemy JSON update)
+                        doc.metadata_ = {
+                            **doc.metadata_,
+                            "duplicate_type": "exact",
+                            "duplicate_of": str(original_doc.id)
+                        }
                         exact_duplicates += 1
                         logger.info(f"Flagged EXACT duplicate: {doc.id} of {original_doc.id}")
                         break
@@ -59,10 +62,10 @@ class DedupService:
                     fingerprint = int(simhash_hex, 16)
                 except ValueError:
                     fingerprint = compute_simhash(doc.cleaned_text or doc.raw_text)
-                    doc.metadata_["simhash"] = hex(fingerprint)
+                    doc.metadata_ = {**doc.metadata_, "simhash": hex(fingerprint)}
             else:
                 fingerprint = compute_simhash(doc.cleaned_text or doc.raw_text)
-                doc.metadata_["simhash"] = hex(fingerprint)
+                doc.metadata_ = {**doc.metadata_, "simhash": hex(fingerprint)}
                 
             is_near = False
             for original_doc, original_hash in zip(unique_docs, unique_simhashes):
@@ -70,9 +73,13 @@ class DedupService:
                 if distance <= threshold:
                     is_near = True
                     doc.duplicate_flag = True
-                    doc.metadata_["duplicate_type"] = "near"
-                    doc.metadata_["duplicate_of"] = str(original_doc.id)
-                    doc.metadata_["similarity_distance"] = distance
+                    # Reassign metadata_ to trigger update
+                    doc.metadata_ = {
+                        **doc.metadata_,
+                        "duplicate_type": "near",
+                        "duplicate_of": str(original_doc.id),
+                        "similarity_distance": distance
+                    }
                     near_duplicates += 1
                     logger.info(f"Flagged NEAR duplicate (distance {distance}): {doc.id} of {original_doc.id}")
                     break
@@ -83,10 +90,13 @@ class DedupService:
 
             # If not a duplicate, mark as unique and add to comparisons pool
             doc.duplicate_flag = False
-            # Remove any residual duplicate info in case of reprocessing
-            doc.metadata_.pop("duplicate_type", None)
-            doc.metadata_.pop("duplicate_of", None)
-            doc.metadata_.pop("similarity_distance", None)
+            # Remove any residual duplicate info in case of reprocessing (reassign dict to trigger update)
+            if doc.metadata_:
+                meta_copy = dict(doc.metadata_)
+                meta_copy.pop("duplicate_type", None)
+                meta_copy.pop("duplicate_of", None)
+                meta_copy.pop("similarity_distance", None)
+                doc.metadata_ = meta_copy
             
             unique_docs.append(doc)
             unique_simhashes.append(fingerprint)
