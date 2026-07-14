@@ -377,3 +377,242 @@ p {
     text-align: center;
   }
 }
+
+/* ==============================================================================
+   Dashboard Layout and Interactive Elements
+   ============================================================================== */
+.dashboard-container {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+  margin-bottom: 4rem;
+  align-items: start;
+}
+
+.sidebar-card {
+  background: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: 1rem;
+  padding: 1.5rem 1rem;
+  box-shadow: var(--glass-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-family: var(--font-sans);
+  width: 100%;
+}
+
+.sidebar-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+}
+
+.sidebar-nav-btn.active {
+  background: var(--primary-glow);
+  color: var(--primary);
+  border-color: var(--primary-border);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
+}
+
+.content-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Forms & Inputs */
+.form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.input-text, .input-select, .input-textarea {
+  background: rgba(10, 12, 28, 0.8);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  transition: var(--transition-fast);
+  outline: none;
+  font-family: var(--font-sans);
+  width: 100%;
+}
+
+.input-text:focus, .input-select:focus, .input-textarea:focus {
+  border-color: var(--primary-border);
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+
+.input-textarea {
+  font-family: var(--font-mono);
+  resize: vertical;
+  min-height: 120px;
+}
+
+/* Tables & Lists */
+.data-table-container {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--card-border);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.data-table th {
+  background: rgba(14, 18, 36, 0.9);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.data-table td {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--card-border);
+  color: var(--text-primary);
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr:hover td {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.text-truncate-cell {
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mono-cell {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Visual Distribution Charts (Pure CSS) */
+.bar-chart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bar-chart-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bar-chart-label-group {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.bar-chart-label {
+  font-weight: 600;
+}
+
+.bar-chart-value {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.bar-chart-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bar-chart-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: 4px;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bar-chart-fill.success-color {
+  background: var(--success);
+}
+
+.bar-chart-fill.primary-color {
+  background: var(--primary);
+}
+
+/* Job progress tracker */
+.job-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--card-border);
+}
+
+.sandbox-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-container {
+    grid-template-columns: 1fr;
+  }
+  .sandbox-box {
+    grid-template-columns: 1fr;
+  }
+}
+
