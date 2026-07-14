@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
 RUN poetry config virtualenvs.create false
 
 # Copy dependency files
-COPY pyproject.toml ./
+COPY pyproject.toml poetry.lock* ./
 
 # Install main dependencies only (skipping dev dependencies)
 RUN poetry install --no-interaction --no-ansi --no-root --only main
