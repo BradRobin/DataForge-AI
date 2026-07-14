@@ -65,12 +65,13 @@ interface SandboxQualityResult {
 }
 
 interface IngestJobStatus {
-  job_id: string;
+  id: string;
+  collector: string;
   status: string;
-  url_count: number;
+  urls: string[];
   collected_count: number;
-  errors: string[];
-  started_at: string;
+  error: string | null;
+  started_at: string | null;
   completed_at: string | null;
 }
 
@@ -840,15 +841,15 @@ export default function Home() {
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       {Object.values(activeJobs).map((job) => (
-                        <div key={job.job_id} className="job-item">
+                        <div key={job.id} className="job-item">
                           <div>
-                            <span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>ID: {job.job_id}</span>
+                            <span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>ID: {job.id}</span>
                             <div style={{ fontWeight: 600, fontSize: '0.95rem', marginTop: '0.25rem' }}>
-                              Urls to Crawl: {job.url_count} | Collected: <strong style={{ color: 'var(--primary)' }}>{job.collected_count}</strong>
+                              Urls to Crawl: {job.urls ? job.urls.length : 0} | Collected: <strong style={{ color: 'var(--primary)' }}>{job.collected_count}</strong>
                             </div>
-                            {job.errors.length > 0 && (
+                            {job.error && (
                               <div style={{ color: 'var(--error)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-                                Errors encountered: {job.errors.join(', ')}
+                                Error encountered: {job.error}
                               </div>
                             )}
                           </div>
