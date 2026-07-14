@@ -108,7 +108,7 @@ async def test_end_to_end_data_engineering_pipeline(client: AsyncClient, db_sess
     # 6. Filtered Dataset Export
     # ====================================================
     # Export JSON excluding duplicates
-    export_res = await client.get("/api/v1/export/export?format_type=json&exclude_duplicates=true")
+    export_res = await client.get("/api/v1/export?format=json&exclude_duplicates=true")
     assert export_res.status_code == 200
     export_json = export_res.json()
     

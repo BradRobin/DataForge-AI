@@ -183,6 +183,7 @@ export default function Home() {
 
   // Poll Ingestion Job status
   const pollJobStatus = async (jobId: string) => {
+    let pollId: any = null;
     const checkJob = async () => {
       try {
         const res = await fetch(`${apiUrl}/api/v1/ingest/status/${jobId}`);
@@ -195,7 +196,7 @@ export default function Home() {
         }));
 
         if (statusData.status === 'completed' || statusData.status === 'failed') {
-          clearInterval(pollId);
+          if (pollId) clearInterval(pollId);
           fetchAnalytics(); // Refresh overview counts
         }
       } catch (e) {
@@ -204,7 +205,7 @@ export default function Home() {
     };
     
     await checkJob();
-    const pollId = setInterval(checkJob, 2000);
+    pollId = setInterval(checkJob, 2000);
   };
 
   // Trigger ingestion job
@@ -434,6 +435,7 @@ export default function Home() {
   };
 
   const pollPipelineStatus = async (pid: string) => {
+    let pollId: any = null;
     const checkStatus = async () => {
       try {
         const res = await fetch(`${apiUrl}/api/v1/pipeline/status/${pid}`);
@@ -442,7 +444,7 @@ export default function Home() {
         setPipelineStatus(statusData);
 
         if (statusData.status === 'completed' || statusData.status === 'failed' || statusData.status === 'cancelled') {
-          clearInterval(pollId);
+          if (pollId) clearInterval(pollId);
           setPipelineRunning(false);
           fetchAnalytics(); // Refresh dashboard counts
           if (statusData.status === 'completed') {
@@ -459,7 +461,7 @@ export default function Home() {
     };
 
     await checkStatus();
-    const pollId = setInterval(checkStatus, 1500);
+    pollId = setInterval(checkStatus, 1500);
   };
 
   const handleCancelPipeline = async () => {
