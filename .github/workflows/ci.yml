@@ -43,7 +43,7 @@ jobs:
       - name: Run Backend Pytest Suite
         run: |
           cd backend
-          poetry run pytest
+          poetry run python -m pytest
 
   frontend-ci:
     name: Frontend CI (Next.js)
