@@ -31,8 +31,11 @@ RUN poetry install --no-interaction --no-ansi --no-root --only main
 # Copy application files
 COPY . .
 
+# Make startup script executable
+RUN chmod +x start.sh
+
 # Expose API port
 EXPOSE 8000
 
-# Start FastAPI application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start application via startup script
+CMD ["./start.sh"]
