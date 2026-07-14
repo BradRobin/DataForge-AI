@@ -273,7 +273,9 @@ export default function Home() {
     setBatchCleanMessage(null);
     try {
       const res = await fetch(`${apiUrl}/api/v1/clean/batch/run`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 100 })
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -333,7 +335,9 @@ export default function Home() {
     setBatchQualityMessage(null);
     try {
       const res = await fetch(`${apiUrl}/api/v1/quality/batch/run`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 100 })
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
