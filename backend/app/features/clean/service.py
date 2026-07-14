@@ -3,6 +3,11 @@ import logging
 import re
 import unicodedata
 from typing import List
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from app.features.documents.models import Document
+from app.features.documents.crud import update_document
+from app.features.documents.schemas import DocumentUpdate
 
 logger = logging.getLogger("dataforge.clean.service")
 
@@ -169,3 +174,24 @@ class TextCleaner:
         text = self.normalize_whitespace(text)
         
         return text
+
+    async def clean_batch(self, db: AsyncSession, limit: int = 100) -> int:
+        """Find and clean a batch of documents in the database that are uncleaned."""
+        stmt = select(Document).where(
+            (Document.cleaned_text == None) | (Document.cleaned_text == "")
+        ).limit(limit)
+        
+        result = await db.execute(stmt)
+        docs = result.scalars().all()
+        
+        processed = 0
+        for doc in docs:
+            cleaned_content = self.clean_document(doc.raw_text)
+            doc_update = DocumentUpdate(cleaned_text=cleaned_content)
+            await update_document(db=db, db_obj=doc, obj_in=doc_update)
+            processed += 1
+            
+        return processed
+
+# Singleton instance of TextCleaner
+clean_service = TextCleaner()

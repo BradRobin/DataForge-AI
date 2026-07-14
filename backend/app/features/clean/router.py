@@ -9,10 +9,9 @@ from app.core.database import get_db
 from app.features.documents.crud import get_document, update_document
 from app.features.documents.models import Document
 from app.features.documents.schemas import DocumentResponse, DocumentUpdate
-from app.features.clean.service import TextCleaner
+from app.features.clean.service import clean_service
 
 router = APIRouter()
-cleaner = TextCleaner()
 
 class CleanTextRequest(BaseModel):
     text: str = Field(..., description="Raw text string to clean and normalize")
@@ -32,7 +31,7 @@ async def clean_raw_text(payload: CleanTextRequest) -> Any:
     Clean and normalize raw text without database side effects.
     Useful for testing cleaning rules.
     """
-    cleaned = cleaner.clean_document(payload.text)
+    cleaned = clean_service.clean_document(payload.text)
     return {"cleaned_text": cleaned}
 
 @router.post("/{document_id}", response_model=DocumentResponse)
@@ -50,7 +49,7 @@ async def clean_document_by_id(
             detail=f"Document with ID '{document_id}' not found."
         )
         
-    cleaned_content = cleaner.clean_document(doc.raw_text)
+    cleaned_content = clean_service.clean_document(doc.raw_text)
     
     # Update document in database
     doc_update = DocumentUpdate(cleaned_text=cleaned_content)
@@ -65,19 +64,5 @@ async def clean_documents_batch(
     """
     Find and clean a batch of documents in the database that have not been cleaned yet (cleaned_text is null).
     """
-    # Query documents where cleaned_text is null or empty
-    stmt = select(Document).where(
-        (Document.cleaned_text == None) | (Document.cleaned_text == "")
-    ).limit(payload.limit)
-    
-    result = await db.execute(stmt)
-    docs = result.scalars().all()
-    
-    processed = 0
-    for doc in docs:
-        cleaned_content = cleaner.clean_document(doc.raw_text)
-        doc_update = DocumentUpdate(cleaned_text=cleaned_content)
-        await update_document(db=db, db_obj=doc, obj_in=doc_update)
-        processed += 1
-        
+    processed = await clean_service.clean_batch(db=db, limit=payload.limit)
     return {"processed_count": processed}

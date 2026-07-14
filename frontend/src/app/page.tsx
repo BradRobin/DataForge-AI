@@ -123,6 +123,15 @@ export default function Home() {
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState<boolean>(false);
 
+  // 6. One-Click Pipeline states
+  const [pipelineUrls, setPipelineUrls] = useState<string>('https://raw.githubusercontent.com/google/flatbuffers/master/README.md');
+  const [pipelineFormat, setPipelineFormat] = useState<string>('parquet');
+  const [pipelineThreshold, setPipelineThreshold] = useState<number>(12);
+  const [pipelineJobId, setPipelineJobId] = useState<string | null>(null);
+  const [pipelineStatus, setPipelineStatus] = useState<any | null>(null);
+  const [pipelineRunning, setPipelineRunning] = useState<boolean>(false);
+  const [pipelineMessage, setPipelineMessage] = useState<string | null>(null);
+
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   // Fetch health check
@@ -383,6 +392,125 @@ export default function Home() {
     }
   };
 
+  // Trigger & Poll One-Click Pipeline
+  const handleTriggerPipeline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPipelineRunning(true);
+    setPipelineJobId(null);
+    setPipelineStatus(null);
+    setPipelineMessage(null);
+    try {
+      const urlsArray = pipelineUrls.split('\n').map(u => u.trim()).filter(u => u !== '');
+      if (urlsArray.length === 0) {
+        throw new Error('Please input at least one URL.');
+      }
+
+      const res = await fetch(`${apiUrl}/api/v1/pipeline/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          urls: urlsArray,
+          threshold: pipelineThreshold,
+          export_format: pipelineFormat
+        })
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.detail || 'Failed to trigger pipeline orchestrator.');
+      }
+
+      const data = await res.json();
+      const pid = data.pipeline_id;
+      setPipelineJobId(pid);
+      setPipelineMessage(`Pipeline job accepted: ${pid}`);
+      
+      // Start polling pipeline status
+      pollPipelineStatus(pid);
+    } catch (e: any) {
+      setPipelineMessage(`Error: ${e.message}`);
+      setPipelineRunning(false);
+    }
+  };
+
+  const pollPipelineStatus = async (pid: string) => {
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/v1/pipeline/status/${pid}`);
+        if (!res.ok) return;
+        const statusData = await res.json();
+        setPipelineStatus(statusData);
+
+        if (statusData.status === 'completed' || statusData.status === 'failed' || statusData.status === 'cancelled') {
+          clearInterval(pollId);
+          setPipelineRunning(false);
+          fetchAnalytics(); // Refresh dashboard counts
+          if (statusData.status === 'completed') {
+            setPipelineMessage('Pipeline completed successfully! Ready for download.');
+          } else if (statusData.status === 'cancelled') {
+            setPipelineMessage('Pipeline cancelled by user.');
+          } else {
+            setPipelineMessage(`Pipeline failed: ${statusData.error}`);
+          }
+        }
+      } catch (e) {
+        // Suppress background errors
+      }
+    };
+
+    await checkStatus();
+    const pollId = setInterval(checkStatus, 1500);
+  };
+
+  const handleCancelPipeline = async () => {
+    if (!pipelineJobId) return;
+    try {
+      const res = await fetch(`${apiUrl}/api/v1/pipeline/cancel/${pipelineJobId}`, {
+        method: 'POST'
+      });
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.detail || 'Failed to cancel pipeline.');
+      }
+      setPipelineMessage('Cancellation request sent.');
+    } catch (e: any) {
+      setPipelineMessage(`Error cancelling: ${e.message}`);
+    }
+  };
+
+  const handleDownloadPipelineExport = async () => {
+    if (!pipelineJobId) return;
+    try {
+      const downloadUrl = `${apiUrl}/api/v1/pipeline/download/${pipelineJobId}`;
+      const res = await fetch(downloadUrl);
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.detail || 'Export download failed.');
+      }
+
+      const blob = await res.blob();
+      let filename = `pipeline_export.${pipelineFormat}`;
+      const disposition = res.headers.get('content-disposition');
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename="(.+?)"/);
+        if (match && match[1]) filename = match[1];
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setPipelineMessage(`Downloaded package: ${filename}`);
+    } catch (e: any) {
+      setPipelineMessage(`Error: ${e.message}`);
+    }
+  };
+
   // Get status color states
   const getBackendStatus = () => {
     if (healthLoading && !health && !healthError) return { label: 'Checking...', class: 'degraded' };
@@ -557,6 +685,9 @@ export default function Home() {
             </button>
             <button className={`sidebar-nav-btn ${activeTab === 'export' ? 'active' : ''}`} onClick={() => setActiveTab('export')}>
               📦 Dataset Export
+            </button>
+            <button className={`sidebar-nav-btn ${activeTab === 'pipeline' ? 'active' : ''}`} onClick={() => setActiveTab('pipeline')}>
+              🚀 One-Click Pipeline
             </button>
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: '1rem 0' }} />
@@ -1176,6 +1307,134 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+
+                <div className="glass-card">
+                  <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#ffffff' }}>Export Integration Specifications</h3>
+                  <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                    Parquet exports are generated binary buffers leveraging PyArrow and can be instantly loaded into ML models or Pandas data frames:
+                  </p>
+                  <pre style={{ background: '#111827', padding: '1rem', borderRadius: '0.5rem', marginTop: '1rem', fontSize: '0.85rem', fontFamily: 'var(--font-mono)', border: '1px solid rgba(255,255,255,0.05)', overflowX: 'auto', color: 'var(--primary)' }}>
+                    import pandas as pd{'\n'}
+                    df = pd.read_parquet("dataset_export.parquet"){'\n'}
+                    print(df.head())
+                  </pre>
+                </div>
+              </>
+            )}
+
+            {/* ==========================================
+                TAB: ONE-CLICK PIPELINE
+                ========================================== */}
+            {activeTab === 'pipeline' && (
+              <>
+                <div style={{ borderBottom: '1px solid var(--card-border)', paddingBottom: '1rem' }}>
+                  <h2 style={{ fontSize: '1.75rem', color: '#ffffff' }}>🚀 One-Click Pipeline Orchestrator</h2>
+                  <p style={{ fontSize: '0.95rem', marginTop: '0.25rem' }}>Execute Collect → Clean → Dedup → Score → Export sequentially.</p>
+                </div>
+
+                <div className="glass-card">
+                  <form onSubmit={handleTriggerPipeline} className="form-card">
+                    <div className="field-group">
+                      <label htmlFor="pipeline-urls">Seed URLs (one per line)</label>
+                      <textarea id="pipeline-urls" rows={4} className="input-textarea" value={pipelineUrls} onChange={(e) => setPipelineUrls(e.target.value)} required />
+                    </div>
+
+                    <div className="form-row">
+                      <div className="field-group">
+                        <label htmlFor="pipeline-format">Export Output Format</label>
+                        <select id="pipeline-format" className="input-select" value={pipelineFormat} onChange={(e) => setPipelineFormat(e.target.value)}>
+                          <option value="parquet">Apache Parquet (.parquet)</option>
+                          <option value="csv">CSV Table (.csv)</option>
+                          <option value="json">JSON Array (.json)</option>
+                        </select>
+                      </div>
+
+                      <div className="field-group">
+                        <label htmlFor="pipeline-threshold">Deduplication Hamming Limit: {pipelineThreshold}</label>
+                        <input id="pipeline-threshold" type="range" min={3} max={25} className="input-text" style={{ padding: '0.25rem' }} value={pipelineThreshold} onChange={(e) => setPipelineThreshold(parseInt(e.target.value))} />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <button type="submit" className="btn btn-primary" disabled={pipelineRunning}>
+                        {pipelineRunning ? 'Pipeline Running...' : 'Launch One-Click Pipeline'}
+                      </button>
+                      {pipelineRunning && pipelineJobId && (
+                        <button type="button" onClick={handleCancelPipeline} className="btn btn-secondary" style={{ borderColor: 'var(--error)', color: 'var(--error)' }}>
+                          Cancel Pipeline
+                        </button>
+                      )}
+                      {pipelineStatus && pipelineStatus.status === 'completed' && (
+                        <button type="button" onClick={handleDownloadPipelineExport} className="btn btn-secondary" style={{ borderColor: 'var(--success)', color: 'var(--success)' }}>
+                          Download Exported Dataset
+                        </button>
+                      )}
+                    </div>
+                  </form>
+
+                  {pipelineMessage && (
+                    <div style={{ marginTop: '1.25rem', padding: '0.75rem 1rem', borderRadius: '0.5rem', background: 'rgba(255,255,255,0.03)', fontSize: '0.95rem', color: 'var(--primary)', border: '1px solid var(--card-border)' }}>
+                      {pipelineMessage}
+                    </div>
+                  )}
+                </div>
+
+                {/* Pipeline Progress Monitor */}
+                {pipelineStatus && (
+                  <div className="glass-card">
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', color: '#ffffff' }}>Pipeline Monitor</h3>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                      <span>Stage: <strong style={{ color: 'var(--primary)', textTransform: 'uppercase' }}>{pipelineStatus.stage}</strong></span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>{pipelineStatus.progress.toFixed(0)}%</span>
+                    </div>
+
+                    {/* Progress Bar Track */}
+                    <div className="bar-chart-track" style={{ height: '14px', borderRadius: '7px', marginBottom: '1.5rem' }}>
+                      <div className={`bar-chart-fill ${pipelineStatus.status === 'failed' ? 'unhealthy' : pipelineStatus.status === 'completed' ? 'success-color' : ''}`} style={{ width: `${pipelineStatus.progress}%`, height: '100%' }}></div>
+                    </div>
+
+                    <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.75rem' }}>Execution Logs</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem' }}>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: pipelineStatus.progress >= 10 ? 1 : 0.4 }}>
+                        <span>1. Collect raw text documents (Seed URLs)</span>
+                        <span style={{ color: pipelineStatus.progress > 10 ? 'var(--success)' : pipelineStatus.progress === 10 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                          {pipelineStatus.progress > 10 ? '✓ Done' : pipelineStatus.progress === 10 ? '● Running...' : 'Waiting'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: pipelineStatus.progress >= 35 ? 1 : 0.4 }}>
+                        <span>2. Clean boilerplate ads, headers, footers & unicode</span>
+                        <span style={{ color: pipelineStatus.progress > 35 ? 'var(--success)' : pipelineStatus.progress === 35 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                          {pipelineStatus.progress > 35 ? '✓ Done' : pipelineStatus.progress === 35 ? '● Running...' : 'Waiting'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: pipelineStatus.progress >= 55 ? 1 : 0.4 }}>
+                        <span>3. Deduplicate exact hashes & SimHash near-duplicates</span>
+                        <span style={{ color: pipelineStatus.progress > 55 ? 'var(--success)' : pipelineStatus.progress === 55 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                          {pipelineStatus.progress > 55 ? '✓ Done' : pipelineStatus.progress === 55 ? '● Running...' : 'Waiting'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: pipelineStatus.progress >= 75 ? 1 : 0.4 }}>
+                        <span>4. Evaluate composite document quality scores</span>
+                        <span style={{ color: pipelineStatus.progress > 75 ? 'var(--success)' : pipelineStatus.progress === 75 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                          {pipelineStatus.progress > 75 ? '✓ Done' : pipelineStatus.progress === 75 ? '● Running...' : 'Waiting'}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', opacity: pipelineStatus.progress >= 90 ? 1 : 0.4 }}>
+                        <span>5. Package and export filtered final dataset</span>
+                        <span style={{ color: pipelineStatus.progress > 90 ? 'var(--success)' : pipelineStatus.progress === 90 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                          {pipelineStatus.progress > 90 ? '✓ Done' : pipelineStatus.progress === 90 ? '● Running...' : 'Waiting'}
+                        </span>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
 
                 <div className="glass-card">
                   <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#ffffff' }}>Export Integration Specifications</h3>
