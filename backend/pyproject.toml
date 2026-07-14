@@ -6,7 +6,7 @@ description = "FastAPI backend for DataForge AI pipeline"
 authors = ["DataForge AI Team"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.11,<3.14"
 fastapi = "^0.115.0"
 uvicorn = {extras = ["standard"], version = "^0.30.6"}
 pydantic = "^2.9.2"
@@ -16,6 +16,8 @@ alembic = "^1.13.3"
 psycopg2-binary = "^2.9.9"
 asyncpg = "^0.30.0"
 aiosqlite = "^0.20.0"
+pandas = "^3.0.3"
+pyarrow = "^25.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
